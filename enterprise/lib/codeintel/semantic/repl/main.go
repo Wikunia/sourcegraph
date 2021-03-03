@@ -32,7 +32,12 @@ cd <path>                                             change directory
 `
 
 func main() {
+<<<<<<< HEAD:enterprise/lib/codeintel/semantic/repl/main.go
 	var bundles []*conversion.GroupedBundleDataMaps
+=======
+	fmt.Printf("pid: %d\n", os.Getpid())
+	var bundles []*correlation.GroupedBundleDataMaps
+>>>>>>> a840aeb8b7... messing around w/ repl:enterprise/internal/codeintel/lsif/repl/main.go
 
 	scanner := bufio.NewScanner(os.Stdin)
 	fmt.Printf("\n> ")
@@ -68,6 +73,11 @@ func main() {
 				break
 			}
 
+			if len(bundles) <= dumpID {
+				fmt.Printf("Dump ID '%d' does not exist", dumpID)
+				break
+			}
+
 			err = queryBundle(bundles[dumpID], path, line, column)
 			if err != nil {
 				fmt.Println(helpMsg)
@@ -85,6 +95,13 @@ func main() {
 				fmt.Println("first argument should be int")
 				break
 			}
+
+			if len(bundles) <= bundleID {
+				fmt.Printf("Bundle ID '%d' does not exist", bundleID)
+				break
+			}
+
+			// fmt.Printf("%+v\n", bundles[bundleID])
 
 			idx := 0
 			for path := range bundles[bundleID].Documents {
