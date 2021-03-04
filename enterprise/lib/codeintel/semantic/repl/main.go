@@ -124,6 +124,9 @@ func main() {
 			}
 			bundles = append(bundles, bundle)
 			fmt.Println("indexing finished")
+
+			fmt.Printf("%+v\n", bundle.Documents)
+
 			break
 
 		case "patch":
