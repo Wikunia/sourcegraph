@@ -125,8 +125,6 @@ func main() {
 			bundles = append(bundles, bundle)
 			fmt.Println("indexing finished")
 
-			fmt.Printf("%+v\n", bundle.Documents)
-
 			break
 
 		case "patch":
@@ -199,6 +197,8 @@ func queryBundle(bundle *conversion.GroupedBundleDataMaps, path string, line, ch
 func makeExistenceFunc(path string) pathexistence.GetChildrenFunc {
 	return func(ctx context.Context, dirnames []string) (map[string][]string, error) {
 		cmd := exec.Command("git", append([]string{"ls-tree", "--name-only", "HEAD"}, cleanDirectoriesForLsTree(dirnames)...)...)
+		cmd.Dir = path
+
 		out, err := cmd.CombinedOutput()
 		if err != nil {
 			fmt.Printf("git ls-tree failed with output %v\n", string(out))
