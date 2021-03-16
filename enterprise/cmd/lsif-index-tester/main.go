@@ -22,6 +22,7 @@ import (
 //   We need to check for lsif-clang, lsif-validate at start time.
 
 type ProjectResult struct {
+	name    string
 	success bool
 	usage   UsageStats
 	output  string
@@ -29,7 +30,7 @@ type ProjectResult struct {
 
 type IndexerResult struct {
 	usage  UsageStats
-	output []byte
+	output string
 }
 
 type UsageStats struct {
@@ -37,19 +38,27 @@ type UsageStats struct {
 	memory int64
 }
 
+// const map[string][]string {
+// 	"lsif-clang": []string{"lsif-clang", "compile_commands.json"},
+// }
+var indexer_commands = map[string]func(string) (string, []string){
+	"lsif-clang": func(directory string) (string, []string) {
+		return "lsif-clang", []string{"compile_commands.json"}
+	},
+}
+
+var directory string
+var indexer string
+var monitor bool
+
 func main() {
 	logging.Init()
 	trace.Init(false)
 
 	log15.Root().SetHandler(log15.StdoutHandler)
 
-	var directory string
 	flag.StringVar(&directory, "dir", ".", "The directory to run the test harness over")
-
-	var indexer string
 	flag.StringVar(&indexer, "indexer", "", "The name of the indexer that you want to test")
-
-	var monitor bool
 	flag.BoolVar(&monitor, "monitor", true, "Whether to monitor and log stats")
 
 	flag.Parse()
@@ -58,13 +67,9 @@ func main() {
 		log.Fatalf("Indexer is required. Pass with --indexer")
 	}
 
-	log15.Info("Starting Execution: ", "directory", directory, "indexer", indexer)
-
-	// w, _ := os.Create("monitor.csv")
-	// testContext = context.WithValue(testContext, "output", w)
+	log15.Info("Starting Execution: ", "base directory", directory, "indexer", indexer)
 
 	testContext := context.Background()
-	testContext = context.WithValue(testContext, "monitor", monitor)
 
 	err := testDirectory(testContext, indexer, directory)
 	if err != nil {
@@ -78,48 +83,62 @@ func testDirectory(ctx context.Context, indexer string, directory string) error 
 		return err
 	}
 
+	results := make(chan *ProjectResult)
+
 	for _, f := range files {
-		log15.Info("Running test for: ", "file", f.Name())
-		projResult, err := testProject(ctx, indexer, directory+"/"+f.Name())
-		if err != nil {
-			fmt.Printf("Project %+v", projResult)
-			log.Fatalf("Project '%s' failed to complete", f.Name())
+		go func(name string) {
+			projResult, err := testProject(ctx, indexer, directory+"/"+name, name)
+
+			if err != nil {
+				results <- nil
+			} else {
+				results <- &projResult
+			}
+		}(f.Name())
+
+	}
+
+	for range files {
+		projResult := <-results
+
+		if projResult == nil {
+			log15.Info("This is weird and it failed...")
+			continue
 		}
 
-		log15.Info("Project result:", "success", projResult.success)
+		log15.Info("Project result:", "name", projResult.name, "success", projResult.success)
 		if !projResult.success {
-			log.Fatalf("Project '%s' failed test", f.Name())
+			log.Fatalf("Project '%s' failed test", "project")
 		}
 	}
 
 	return nil
 }
 
-func testProject(ctx context.Context, indexer, project string) (ProjectResult, error) {
+func testProject(ctx context.Context, indexer, project, name string) (ProjectResult, error) {
+	output, err := setupProject(project)
+	if err != nil {
+		return ProjectResult{name: name, success: false, output: string(output)}, err
+	} else {
+		log15.Debug("... Generated compile_commands.json")
+	}
 
-	var result IndexerResult
-	var err error
-
-	if indexer == "lsif-clang" {
-		log15.Debug("... Starting lsif clang")
-		result, err = testLsifClang(ctx, project)
-		if err != nil {
-			return ProjectResult{
-				success: false,
-				usage: UsageStats{
-					memory: -1,
-				},
-				output: string(result.output),
-			}, err
-		}
+	result, err := runIndexer(ctx, indexer, project, name)
+	if err != nil {
+		return ProjectResult{
+			name:    name,
+			success: false,
+			output:  string(result.output),
+		}, err
 	}
 
 	log15.Debug("... \t Resource Usage:", "usage", result.usage)
 
-	output, err := validateDump(project)
+	output, err = validateDump(project)
 	if err != nil {
 		fmt.Println("Not valid")
 		return ProjectResult{
+			name:    name,
 			success: false,
 			usage:   result.usage,
 			output:  string(output),
@@ -129,65 +148,48 @@ func testProject(ctx context.Context, indexer, project string) (ProjectResult, e
 	}
 
 	bundle, err := readBundle(1, project)
-	// fmt.Printf("Bundle: %+v\n", bundle)
-	// if err != nil {
-	// 	return []byte{}, err
-	// }
-	// // fmt.Printf("Bundle: %+v\n", bundle)
+	if err != nil {
+		return ProjectResult{
+			name:    name,
+			success: false,
+			usage:   result.usage,
+			output:  string(output),
+		}, err
+	}
 
 	validateTestCases(project, bundle)
 
 	return ProjectResult{
+		name:    name,
 		success: true,
 		usage:   result.usage,
 		output:  string(output),
 	}, nil
 }
 
-// TODO this is pretty dumb... we should find some way that isn't hard coded in here to run it.
-// But for now I'm going to do it this way.
-func testLsifClang(ctx context.Context, project string) (IndexerResult, error) {
-	output, err := generateCompileCommands(project)
-	if err != nil {
-		return IndexerResult{
-			usage:  UsageStats{memory: -1},
-			output: output,
-		}, err
-	} else {
-		log15.Debug("... Generated compile_commands.json")
-	}
-
-	output, usage, err := runLsifClang(ctx, project)
-	if err != nil {
-		log.Println(output)
-		log.Fatal(err)
-	} else {
-		log15.Debug("... Generated dump.lsif")
-	}
-
-	return IndexerResult{
-		usage:  usage,
-		output: output,
-	}, err
-}
-
-func generateCompileCommands(directory string) ([]byte, error) {
-	cmd := exec.Command("./get_compile_commands.sh")
+func setupProject(directory string) ([]byte, error) {
+	cmd := exec.Command("./setup_indexer.sh")
 	cmd.Dir = directory
 
 	return cmd.CombinedOutput()
 }
 
-func runLsifClang(ctx context.Context, directory string) ([]byte, UsageStats, error) {
+func runIndexer(ctx context.Context, indexer, directory, name string) (ProjectResult, error) {
 	// TODO: We should add how long it takes to generate this.
+	commandGetter, ok := indexer_commands[indexer]
+	if !ok {
+		panic("Invalid indexer")
+	}
 
-	cmd := exec.Command("lsif-clang", "compile_commands.json")
-	cmd.Dir = directory
+	command, args := commandGetter(directory)
 
 	log15.Debug("... Generating dump.lsif")
+	cmd := exec.Command(command, args...)
+	cmd.Dir = directory
+
 	output, err := cmd.CombinedOutput()
 	if err != nil {
-		return output, UsageStats{memory: -1}, err
+		return ProjectResult{}, err
 	}
 
 	sysUsage := cmd.ProcessState.SysUsage()
@@ -195,7 +197,12 @@ func runLsifClang(ctx context.Context, directory string) ([]byte, UsageStats, er
 	// fmt.Println("Memory Usage:", mem, "kB")
 	// fmt.Println("User CPU", sysUsage.Utime)
 
-	return output, UsageStats{memory: mem}, err
+	return ProjectResult{
+		name:    name,
+		success: false,
+		usage:   UsageStats{memory: mem},
+		output:  string(output),
+	}, err
 }
 
 func validateDump(directory string) ([]byte, error) {
@@ -228,8 +235,10 @@ func validateTestCases(directory string, bundle *conversion.GroupedBundleDataMap
 			log.Fatalf("Failed query: %s", err)
 		}
 
-		if len(results) != 1 {
+		if len(results) > 1 {
 			log.Fatalf("Had too many results: %v", results)
+		} else if len(results) == 0 {
+			log.Fatalf("Found no results: %v", results)
 		}
 
 		definitions := results[0].Definitions
@@ -246,7 +255,7 @@ func validateTestCases(directory string, bundle *conversion.GroupedBundleDataMap
 		}
 	}
 
-	log15.Info("Passed tests")
+	log15.Info("Passed tests", "project", directory)
 }
 
 func transformLocationToResponse(location semantic.LocationData) DefinitionResponse {
