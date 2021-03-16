@@ -181,6 +181,7 @@ Referenced by:
 Indexes:
     "changesets_pkey" PRIMARY KEY, btree (id)
     "changesets_repo_external_id_unique" UNIQUE CONSTRAINT, btree (repo_id, external_id)
+    "changesets_batch_change_ids" gin (batch_change_ids)
     "changesets_external_state_idx" btree (external_state)
     "changesets_publication_state_idx" btree (publication_state)
     "changesets_reconciler_state_idx" btree (reconciler_state)
@@ -549,7 +550,7 @@ Foreign-key constraints:
  encryption_key_id | text                     | not null default ''::text
 Indexes:
     "external_services_pkey" PRIMARY KEY, btree (id)
-    "kind_cloud_default" UNIQUE, btree (kind, cloud_default) WHERE cloud_default = true
+    "kind_cloud_default" UNIQUE, btree (kind, cloud_default) WHERE cloud_default = true AND deleted_at IS NULL
     "external_services_namespace_user_id_idx" btree (namespace_user_id)
 Check constraints:
     "check_non_empty_config" CHECK (btrim(config) <> ''::text)

@@ -19,6 +19,7 @@ import (
 	searchrepos "github.com/sourcegraph/sourcegraph/cmd/frontend/internal/search/repos"
 	"github.com/sourcegraph/sourcegraph/internal/api"
 	"github.com/sourcegraph/sourcegraph/internal/database"
+	"github.com/sourcegraph/sourcegraph/internal/database/dbtest"
 	"github.com/sourcegraph/sourcegraph/internal/database/dbtesting"
 	"github.com/sourcegraph/sourcegraph/internal/database/dbutil"
 	"github.com/sourcegraph/sourcegraph/internal/extsvc"
@@ -425,8 +426,7 @@ func TestProcessSearchPatternAndOr(t *testing.T) {
 	}
 	for _, tt := range cases {
 		t.Run(tt.name, func(t *testing.T) {
-			q, err := query.Parse(tt.pattern,
-				query.ParserOptions{SearchType: tt.searchType, Globbing: false})
+			q, err := query.ParseSearchType(tt.pattern, tt.searchType)
 			if err != nil {
 				t.Fatalf(err.Error())
 			}
@@ -1102,7 +1102,7 @@ func TestGetExactFilePatterns(t *testing.T) {
 	}
 	for _, tt := range tests {
 		t.Run(tt.in, func(t *testing.T) {
-			q, err := query.Parse(tt.in, query.ParserOptions{SearchType: query.SearchTypeLiteral, Globbing: true})
+			q, err := query.Pipeline(query.InitLiteral(tt.in), query.Globbing)
 			if err != nil {
 				t.Fatal(err)
 			}
@@ -1348,6 +1348,8 @@ func TestSearchContext(t *testing.T) {
 	envvar.MockSourcegraphDotComMode(true)
 	defer envvar.MockSourcegraphDotComMode(orig)
 
+	db := dbtest.NewDB(t, "")
+
 	tts := []struct {
 		name        string
 		searchQuery string
@@ -1382,6 +1384,7 @@ func TestSearchContext(t *testing.T) {
 				reposMu:  &sync.Mutex{},
 				resolved: &searchrepos.Resolved{},
 				zoekt:    mockZoekt,
+				db:       db,
 			}
 
 			numGetByNameCalls := 0
@@ -1426,8 +1429,8 @@ func commitResult(urlKey string) *CommitSearchResultResolver {
 
 func diffResult(urlKey string) *CommitSearchResultResolver {
 	return &CommitSearchResultResolver{
-		CommitSearchResult: CommitSearchResult{
-			DiffPreview: &highlightedString{},
+		CommitMatch: result.CommitMatch{
+			DiffPreview: &result.HighlightedString{},
 		},
 		gitCommitResolver: &GitCommitResolver{
 			repoResolver: &RepositoryResolver{
@@ -1738,4 +1741,11 @@ func TestIsGlobalSearch(t *testing.T) {
 		})
 	}
 
+}
+
+func TestZeroElapsedMilliseconds(t *testing.T) {
+	r := &SearchResultsResolver{}
+	if got := r.ElapsedMilliseconds(); got != 0 {
+		t.Fatalf("got %d, want %d", got, 0)
+	}
 }
