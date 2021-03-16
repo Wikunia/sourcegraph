@@ -149,9 +149,8 @@ func runWatch(ctx context.Context, cmd Command, root string, reload <-chan struc
 	outer:
 		for {
 			select {
-			case path := <-reload:
-				out.WriteLine(output.Linef("", output.StylePending, "Change detected: %s", path))
-				out.WriteLine(output.Linef("", output.StylePending, "Reloading %s...", cmd.Name))
+			case <-reload:
+				out.WriteLine(output.Linef("", output.StylePending, "Change detected. Reloading %s...", cmd.Name))
 
 				cancel()    // Stop command
 				<-errs      // Wait for exit
