@@ -155,10 +155,8 @@ commands:
       # This is not needed actually
       INSECURE_DEV: 1
 
-  # [...]
-
 commandsets:
-  basic:
+  default:
     - frontend
     - repo-updater
     - gitserver
@@ -171,7 +169,7 @@ commandsets:
     - syntect_server
     - github-proxy
 
-  basic-enterprise:
+  enterprise:
     - enterprise-frontend
     - enterprise-repo-updater
     - gitserver
@@ -183,25 +181,6 @@ commandsets:
     - docsite
     - syntect_server
     - github-proxy
-
-  # This is the set that will be used when `sg start` is run:
-  default:
-    - gitserver
-    - query-runner
-    - repo-updater
-    - searcher
-    - symbols
-    - github-proxy
-    - frontend
-    - watch
-    - caddy
-    - web
-    - syntect_server
-    - zoekt-indexserver-0
-    - zoekt-indexserver-1
-    - zoekt-webserver-0
-    - zoekt-webserver-1
-    - docsite
 
   # Another set that can be run with `sg run-set monitoring`:
   monitoring:

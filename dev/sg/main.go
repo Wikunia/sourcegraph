@@ -57,30 +57,7 @@ var (
 		ShortUsage: "sg run-set <commandset>",
 		ShortHelp:  "Run the given command set.",
 		FlagSet:    runSetFlagSet,
-		Exec: func(ctx context.Context, args []string) error {
-			if len(args) != 1 {
-				fmt.Printf("ERROR: too many arguments\n\n")
-				return flag.ErrHelp
-			}
-
-			names, ok := conf.Commandsets[args[0]]
-			if !ok {
-				fmt.Printf("ERROR: commandset %q not found :(\n\n", args[0])
-				return flag.ErrHelp
-			}
-
-			cmds := make([]Command, 0, len(names))
-			for _, name := range names {
-				cmd, ok := conf.Commands[name]
-				if !ok {
-					return fmt.Errorf("command %q not found in commandset %q", name, args[0])
-				}
-
-				cmds = append(cmds, cmd)
-			}
-
-			return run(ctx, cmds...)
-		},
+		Exec:       runExec,
 		UsageFunc: func(c *ffcli.Command) string {
 			var out strings.Builder
 
@@ -96,6 +73,58 @@ var (
 			return out.String()
 		},
 	}
+
+	runExec = func(ctx context.Context, args []string) error {
+		if len(args) != 1 {
+			fmt.Printf("ERROR: too many arguments\n\n")
+			return flag.ErrHelp
+		}
+
+		names, ok := conf.Commandsets[args[0]]
+		if !ok {
+			fmt.Printf("ERROR: commandset %q not found :(\n\n", args[0])
+			return flag.ErrHelp
+		}
+
+		cmds := make([]Command, 0, len(names))
+		for _, name := range names {
+			cmd, ok := conf.Commands[name]
+			if !ok {
+				return fmt.Errorf("command %q not found in commandset %q", name, args[0])
+			}
+
+			cmds = append(cmds, cmd)
+		}
+
+		return run(ctx, cmds...)
+	}
+)
+
+var (
+	startFlagSet = flag.NewFlagSet("sg start", flag.ExitOnError)
+
+	startCommand = &ffcli.Command{
+		Name:       "start",
+		ShortUsage: "sg start>",
+		ShortHelp:  "Runs the commandset with the name 'start'.",
+		FlagSet:    runFlagSet,
+		Exec: func(ctx context.Context, args []string) error {
+			if len(args) != 0 {
+				fmt.Printf("ERROR: this command doesn't take arguments\n\n")
+				return flag.ErrHelp
+			}
+
+			return runExec(ctx, []string{"default"})
+		},
+		UsageFunc: func(c *ffcli.Command) string {
+			var out strings.Builder
+
+			fmt.Fprintf(&out, "USAGE\n")
+			fmt.Fprintln(&out, "  sg start")
+
+			return out.String()
+		},
+	}
 )
 
 var (
@@ -106,7 +135,7 @@ var (
 	rootCommand = &ffcli.Command{
 		ShortUsage:  "sg [flags] <subcommand>",
 		FlagSet:     rootFlagSet,
-		Subcommands: []*ffcli.Command{runCommand, runSetCommand},
+		Subcommands: []*ffcli.Command{runCommand, runSetCommand, startCommand},
 	}
 )
 
