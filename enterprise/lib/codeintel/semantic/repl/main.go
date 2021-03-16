@@ -32,12 +32,8 @@ cd <path>                                             change directory
 `
 
 func main() {
-<<<<<<< HEAD:enterprise/lib/codeintel/semantic/repl/main.go
+	fmt.Printf("process pid: %d\n", os.Getpid())
 	var bundles []*conversion.GroupedBundleDataMaps
-=======
-	fmt.Printf("pid: %d\n", os.Getpid())
-	var bundles []*correlation.GroupedBundleDataMaps
->>>>>>> a840aeb8b7... messing around w/ repl:enterprise/internal/codeintel/lsif/repl/main.go
 
 	scanner := bufio.NewScanner(os.Stdin)
 	fmt.Printf("\n> ")
