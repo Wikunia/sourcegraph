@@ -284,11 +284,15 @@ func runTest(ctx context.Context, cmd Command) error {
 		return err
 	}
 
+	out.WriteLine(output.Linef("", output.StylePending, "Starting testsuite %s", cmd.Name))
+	out.WriteLine(output.Linef("", output.StylePending, "Running %q in %q...", cmd.Cmd, root))
 	commandCtx, cancel := context.WithCancel(ctx)
 	defer cancel()
 
 	c := exec.CommandContext(commandCtx, "bash", "-c", cmd.Cmd)
 	c.Dir = root
 	c.Env = makeEnv(conf.Env, cmd.Env)
-	return c.Start()
+	c.Stdout = os.Stdout
+	c.Stderr = os.Stderr
+	return c.Run()
 }

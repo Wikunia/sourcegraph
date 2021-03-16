@@ -194,7 +194,7 @@ tests:
   backend:
     cmd: go test ./...
   backend-integration:
-    cmd: go test -long -base-url $BASE_URL -email $EMAIL -username $USERNAME -password $PASSWORD
+    cmd: cd dev/gqltest && go test -long -base-url $BASE_URL -email $EMAIL -username $USERNAME -password $PASSWORD ./gqltest
     env:
       # These are defaults. They can be overwritten by setting the env vars when
       # running the command.
