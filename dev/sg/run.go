@@ -48,7 +48,6 @@ func run(ctx context.Context, cmds ...Command) error {
 		go func(cmd Command, ch <-chan struct{}) {
 			defer wg.Done()
 
-			// TODO - needs to be a proper fanout
 			if err := runWatch(ctx, cmd, root, ch); err != nil {
 				if err != ctx.Err() {
 					errs <- errors.Wrap(err, fmt.Sprintf("%s failed", cmd.Name))
