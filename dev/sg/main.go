@@ -77,6 +77,7 @@ func main() {
 	}
 
 	if err := rootCommand.Run(context.Background()); err != nil {
+		fmt.Printf("error: %s\n", err)
 		os.Exit(1)
 	}
 }
