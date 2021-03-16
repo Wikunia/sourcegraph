@@ -12,8 +12,8 @@ import (
 	"github.com/google/go-cmp/cmp"
 	"github.com/inconshreveable/log15"
 	"github.com/pelletier/go-toml"
-	"github.com/sourcegraph/sourcegraph/enterprise/internal/codeintel/lsif/correlation"
-	"github.com/sourcegraph/sourcegraph/enterprise/internal/codeintel/stores/lsifstore"
+	"github.com/sourcegraph/sourcegraph/enterprise/lib/codeintel/lsif/conversion"
+	"github.com/sourcegraph/sourcegraph/enterprise/lib/codeintel/semantic"
 	"github.com/sourcegraph/sourcegraph/internal/logging"
 	"github.com/sourcegraph/sourcegraph/internal/trace"
 )
@@ -207,7 +207,7 @@ func validateDump(directory string) ([]byte, error) {
 	return cmd.CombinedOutput()
 }
 
-func validateTestCases(directory string, bundle *correlation.GroupedBundleDataMaps) {
+func validateTestCases(directory string, bundle *conversion.GroupedBundleDataMaps) {
 	doc, err := ioutil.ReadFile(directory + "/test.toml")
 	if err != nil {
 		log15.Warn("No file exists here")
@@ -222,7 +222,7 @@ func validateTestCases(directory string, bundle *correlation.GroupedBundleDataMa
 		line := definitionRequest.Request.Position.Line
 		character := definitionRequest.Request.Position.Character
 
-		results, err := correlation.Query(bundle, path, line, character)
+		results, err := conversion.Query(bundle, path, line, character)
 
 		if err != nil {
 			log.Fatalf("Failed query: %s", err)
@@ -249,7 +249,7 @@ func validateTestCases(directory string, bundle *correlation.GroupedBundleDataMa
 	log15.Info("Passed tests")
 }
 
-func transformLocationToResponse(location lsifstore.LocationData) DefinitionResponse {
+func transformLocationToResponse(location semantic.LocationData) DefinitionResponse {
 	return DefinitionResponse{
 		TextDocument: location.URI,
 		Range: Range{

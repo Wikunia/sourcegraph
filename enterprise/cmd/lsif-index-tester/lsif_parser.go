@@ -10,11 +10,11 @@ import (
 	"sort"
 	"strings"
 
-	"github.com/sourcegraph/sourcegraph/enterprise/internal/codeintel/lsif/correlation"
-	"github.com/sourcegraph/sourcegraph/enterprise/internal/codeintel/lsif/existence"
+	"github.com/sourcegraph/sourcegraph/enterprise/lib/codeintel/lsif/conversion"
+	"github.com/sourcegraph/sourcegraph/enterprise/lib/codeintel/pathexistence"
 )
 
-func readBundle(dumpID int, root string) (*correlation.GroupedBundleDataMaps, error) {
+func readBundle(dumpID int, root string) (*conversion.GroupedBundleDataMaps, error) {
 	dumpPath := path.Join(root, "dump.lsif")
 	getChildrenFunc := makeExistenceFunc(root)
 	file, err := os.Open(dumpPath)
@@ -24,16 +24,16 @@ func readBundle(dumpID int, root string) (*correlation.GroupedBundleDataMaps, er
 	}
 	defer file.Close()
 
-	bundle, err := correlation.Correlate(context.Background(), file, dumpID, "", getChildrenFunc)
+	bundle, err := conversion.Correlate(context.Background(), file, dumpID, "", getChildrenFunc)
 	if err != nil {
-		fmt.Println("Correlation failed")
+		fmt.Println("conversion failed")
 		return nil, err
 	}
 
-	return correlation.GroupedBundleDataChansToMaps(context.Background(), bundle), nil
+	return conversion.GroupedBundleDataChansToMaps(context.Background(), bundle), nil
 }
 
-func makeExistenceFunc(directory string) existence.GetChildrenFunc {
+func makeExistenceFunc(directory string) pathexistence.GetChildrenFunc {
 	return func(ctx context.Context, dirnames []string) (map[string][]string, error) {
 		// NOTE: We're using find because it allows us to look for things outside of git directories (you might just have a bunch
 		// of code somewhere, outside of a git repo). But if you're experiencing big slowdowns, you may want to try and consider
