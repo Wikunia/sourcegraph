@@ -15,6 +15,7 @@ import (
 	"github.com/rjeczalik/notify"
 
 	// TODO - deduplicate me
+	"github.com/sourcegraph/batch-change-utils/output"
 	"github.com/sourcegraph/sourcegraph/dev/sg/root"
 )
 
@@ -64,14 +65,15 @@ func run(ctx context.Context, cmds ...Command) error {
 func runWatch(ctx context.Context, cmd Command, root string, reload <-chan struct{}) error {
 	for {
 		// Build it
-		fmt.Printf("Installing %s...\n", cmd.Name)
+		out.WriteLine(output.Linef("", output.StylePending, "Installing %s...", cmd.Name))
 
 		c := exec.CommandContext(ctx, "bash", "-c", cmd.Install)
 		c.Dir = root
 		c.Env = makeEnv(conf.Env, cmd.Env)
-		out, err := c.CombinedOutput()
+		cmdOut, err := c.CombinedOutput()
 		if err != nil {
-			return fmt.Errorf("failed to install %q: %s (output: %s)", cmd.Name, err, out)
+			// TODO: If installation fails after reloading, we need to print the output and not just exit
+			return fmt.Errorf("failed to install %q: %s (output: %s)", cmd.Name, err, cmdOut)
 		}
 
 		// clear this signal before starting
@@ -80,8 +82,10 @@ func runWatch(ctx context.Context, cmd Command, root string, reload <-chan struc
 		default:
 		}
 
+		out.WriteLine(output.Linef("", output.StyleSuccess, "%sSuccessfully installed %s%s", output.StyleBold, cmd.Name, output.StyleReset))
+
 		// Run it
-		fmt.Printf("Running %s...\n", cmd.Name)
+		out.WriteLine(output.Linef("", output.StylePending, "Running %s...", cmd.Name))
 
 		commandCtx, cancel := context.WithCancel(ctx)
 		defer cancel()
@@ -106,7 +110,12 @@ func runWatch(ctx context.Context, cmd Command, root string, reload <-chan struc
 
 			scanner := bufio.NewScanner(r)
 			for scanner.Scan() {
-				fmt.Fprintf(os.Stdout, "[%s] %s: %s\n", cmd.Name, prefix, scanner.Text())
+				text := strings.TrimSpace(scanner.Text())
+				if text == "" {
+					continue
+				}
+
+				out.Writef("%s[%s]%s %s", output.StyleBold, cmd.Name, output.StyleReset, text)
 			}
 		}
 
@@ -141,8 +150,8 @@ func runWatch(ctx context.Context, cmd Command, root string, reload <-chan struc
 		for {
 			select {
 			case path := <-reload:
-				fmt.Printf("Change detected: %s\n", path)
-				fmt.Printf("Reloading %s...\n", cmd.Name)
+				out.WriteLine(output.Linef("", output.StylePending, "Change detected: %s", path))
+				out.WriteLine(output.Linef("", output.StylePending, "Reloading %s...", cmd.Name))
 
 				cancel()    // Stop command
 				<-errs      // Wait for exit

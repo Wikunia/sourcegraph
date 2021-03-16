@@ -8,6 +8,7 @@ import (
 	"strings"
 
 	"github.com/peterbourgon/ff/v3/ffcli"
+	"github.com/sourcegraph/batch-change-utils/output"
 )
 
 var (
@@ -20,13 +21,13 @@ var (
 		FlagSet:    runFlagSet,
 		Exec: func(ctx context.Context, args []string) error {
 			if len(args) != 1 {
-				fmt.Printf("ERROR: too many arguments\n\n")
+				out.WriteLine(output.Linef("", output.StyleWarning, "ERROR: too many arguments\n"))
 				return flag.ErrHelp
 			}
 
 			cmd, ok := conf.Commands[args[0]]
 			if !ok {
-				fmt.Printf("ERROR: command %q not found :(\n\n", args[0])
+				out.WriteLine(output.Linef("", output.StyleWarning, "ERROR: command %q not found :(\n", args[0]))
 				return flag.ErrHelp
 			}
 
@@ -57,7 +58,7 @@ var (
 		ShortUsage: "sg run-set <commandset>",
 		ShortHelp:  "Run the given command set.",
 		FlagSet:    runSetFlagSet,
-		Exec:       runExec,
+		Exec:       runSetExec,
 		UsageFunc: func(c *ffcli.Command) string {
 			var out strings.Builder
 
@@ -74,15 +75,15 @@ var (
 		},
 	}
 
-	runExec = func(ctx context.Context, args []string) error {
+	runSetExec = func(ctx context.Context, args []string) error {
 		if len(args) != 1 {
-			fmt.Printf("ERROR: too many arguments\n\n")
+			out.WriteLine(output.Linef("", output.StyleWarning, "ERROR: too many arguments\n"))
 			return flag.ErrHelp
 		}
 
 		names, ok := conf.Commandsets[args[0]]
 		if !ok {
-			fmt.Printf("ERROR: commandset %q not found :(\n\n", args[0])
+			out.WriteLine(output.Linef("", output.StyleWarning, "ERROR: commandset %q not found :(\n", args[0]))
 			return flag.ErrHelp
 		}
 
@@ -114,7 +115,7 @@ var (
 				return flag.ErrHelp
 			}
 
-			return runExec(ctx, []string{"default"})
+			return runSetExec(ctx, []string{"default"})
 		},
 		UsageFunc: func(c *ffcli.Command) string {
 			var out strings.Builder
