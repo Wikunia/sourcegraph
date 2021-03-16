@@ -277,3 +277,18 @@ func watch() (<-chan string, error) {
 
 	return paths, nil
 }
+
+func runTest(ctx context.Context, cmd Command) error {
+	root, err := root.RepositoryRoot()
+	if err != nil {
+		return err
+	}
+
+	commandCtx, cancel := context.WithCancel(ctx)
+	defer cancel()
+
+	c := exec.CommandContext(commandCtx, "bash", "-c", cmd.Cmd)
+	c.Dir = root
+	c.Env = makeEnv(conf.Env, cmd.Env)
+	return c.Start()
+}

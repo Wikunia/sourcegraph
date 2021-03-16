@@ -20,6 +20,11 @@ var (
 		ShortHelp:  "Run the given command.",
 		FlagSet:    runFlagSet,
 		Exec: func(ctx context.Context, args []string) error {
+			if len(args) == 0 {
+				out.WriteLine(output.Linef("", output.StyleWarning, "No command specified\n"))
+				return flag.ErrHelp
+			}
+
 			if len(args) != 1 {
 				out.WriteLine(output.Linef("", output.StyleWarning, "ERROR: too many arguments\n"))
 				return flag.ErrHelp
@@ -39,7 +44,7 @@ var (
 			fmt.Fprintf(&out, "USAGE\n")
 			fmt.Fprintf(&out, "  sg %s <command>\n", c.Name)
 			fmt.Fprintf(&out, "\n")
-			fmt.Fprintf(&out, "AVAILABLE COMMANDS IN %s\n", *configFlag)
+			fmt.Fprintf(&out, "AVAILABLE COMMANDS IN %s%s%s\n", output.StyleBold, *configFlag, output.StyleReset)
 
 			for name := range conf.Commands {
 				fmt.Fprintf(&out, "  %s\n", name)
@@ -65,7 +70,7 @@ var (
 			fmt.Fprintf(&out, "USAGE\n")
 			fmt.Fprintf(&out, "  sg %s <commandset>\n", c.Name)
 			fmt.Fprintf(&out, "\n")
-			fmt.Fprintf(&out, "AVAILABLE COMMANDSETS IN %s\n", *configFlag)
+			fmt.Fprintf(&out, "AVAILABLE COMMANDSETS IN %s%s%s\n", output.StyleBold, *configFlag, output.StyleReset)
 
 			for name := range conf.Commandsets {
 				fmt.Fprintf(&out, "  %s\n", name)
@@ -76,6 +81,11 @@ var (
 	}
 
 	runSetExec = func(ctx context.Context, args []string) error {
+		if len(args) == 0 {
+			out.WriteLine(output.Linef("", output.StyleWarning, "No commandset specified\n"))
+			return flag.ErrHelp
+		}
+
 		if len(args) != 1 {
 			out.WriteLine(output.Linef("", output.StyleWarning, "ERROR: too many arguments\n"))
 			return flag.ErrHelp
@@ -108,7 +118,7 @@ var (
 		Name:       "start",
 		ShortUsage: "sg start>",
 		ShortHelp:  "Runs the commandset with the name 'start'.",
-		FlagSet:    runFlagSet,
+		FlagSet:    startFlagSet,
 		Exec: func(ctx context.Context, args []string) error {
 			if len(args) != 0 {
 				fmt.Printf("ERROR: this command doesn't take arguments\n\n")
@@ -129,6 +139,50 @@ var (
 )
 
 var (
+	testFlagSet = flag.NewFlagSet("sg test", flag.ExitOnError)
+
+	testCommand = &ffcli.Command{
+		Name:       "test",
+		ShortUsage: "sg test <testsuite>",
+		ShortHelp:  "Run the given test suite.",
+		FlagSet:    testFlagSet,
+		Exec: func(ctx context.Context, args []string) error {
+			if len(args) == 0 {
+				out.WriteLine(output.Linef("", output.StyleWarning, "No test suite specified\n"))
+				return flag.ErrHelp
+			}
+
+			if len(args) != 1 {
+				out.WriteLine(output.Linef("", output.StyleWarning, "ERROR: too many arguments\n"))
+				return flag.ErrHelp
+			}
+
+			cmd, ok := conf.Tests[args[0]]
+			if !ok {
+				out.WriteLine(output.Linef("", output.StyleWarning, "ERROR: test suite %q not found :(\n", args[0]))
+				return flag.ErrHelp
+			}
+
+			return runTest(ctx, cmd)
+		},
+		UsageFunc: func(c *ffcli.Command) string {
+			var out strings.Builder
+
+			fmt.Fprintf(&out, "USAGE\n")
+			fmt.Fprintf(&out, "  sg %s <test suite>\n", c.Name)
+			fmt.Fprintf(&out, "\n")
+			fmt.Fprintf(&out, "AVAILABLE TESTSUITES IN %s%s%s\n", output.StyleBold, *configFlag, output.StyleReset)
+
+			for name := range conf.Tests {
+				fmt.Fprintf(&out, "  %s\n", name)
+			}
+
+			return out.String()
+		},
+	}
+)
+
+var (
 	rootFlagSet = flag.NewFlagSet("sg", flag.ExitOnError)
 	configFlag  = rootFlagSet.String("config", "sg.config.yaml", "configuration file")
 	conf        *Config
@@ -136,7 +190,7 @@ var (
 	rootCommand = &ffcli.Command{
 		ShortUsage:  "sg [flags] <subcommand>",
 		FlagSet:     rootFlagSet,
-		Subcommands: []*ffcli.Command{runCommand, runSetCommand, startCommand},
+		Subcommands: []*ffcli.Command{runCommand, runSetCommand, startCommand, testCommand},
 	}
 )
 
