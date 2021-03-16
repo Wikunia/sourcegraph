@@ -92,7 +92,7 @@ export const SearchResultsInfoBar: React.FunctionComponent<SearchResultsInfoBarP
                 </Link>
             </li>
         )
-    }, [props.enableCodeMonitoring, props.query, props.patternType, props.location.search])
+    }, [props.enableCodeMonitoring, props.query, props.authenticatedUser, props.location.search, props.patternType])
     return (
         <div className={classNames(props.className, 'search-results-info-bar')} data-testid="results-info-bar">
             <small className="search-results-info-bar__row">
