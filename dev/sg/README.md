@@ -31,6 +31,7 @@ go get github.com/sourcegraph/sourcegraph/dev/sg
 ```
 
 ## Usage
+
 ### Start dev environment
 
 ```bash
@@ -140,8 +141,8 @@ commands:
     install: go install github.com/sourcegraph/sourcegraph/cmd/searcher -o .bin/gitserver
 
   caddy:
-    install_doc.darwin: "use brew install"
-    install_doc.linux: "use apt install"
+    install_doc.darwin: 'use brew install'
+    install_doc.linux: 'use apt install'
 
   web:
     cmd: ./node_modules/.bin/gulp --silent --color dev
@@ -200,9 +201,9 @@ tests:
     env:
       # These are defaults. They can be overwritten by setting the env vars when
       # running the command.
-      BASE_URL: "http://localhost:3080"
-      EMAIL: "joe@sourcegraph.com"
-      PASSWORD: "12345"
+      BASE_URL: 'http://localhost:3080'
+      EMAIL: 'joe@sourcegraph.com'
+      PASSWORD: '12345'
   frontend:
     cmd: yarn run jest --testPathIgnorePatterns end-to-end regression integration storybook
   frontend-e2e:
